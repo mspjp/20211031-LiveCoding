@@ -1,124 +1,83 @@
 #r "Newtonsoft.Json"
 #r "Microsoft.WindowsAzure.Storage"
+#r "System.Web"
 
 using System;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Xml;
+using System.Web;
 using Newtonsoft.Json;
 
 /// <summary>
-/// Lineからコンテンツを取得
+/// Custom Visionで画像を識別
 /// </summary>
 /// <returns>Stream</returns>
-static async Task<Stream> GetLineContents(string messageId)
+static async Task<HttpResponseMessage> GetVisionData(Stream stream)
 {
-    Stream responsestream = new MemoryStream();
+    var client = new HttpClient();
+    var queryString = HttpUtility.ParseQueryString(string.Empty);
 
-    // 画像を取得するLine APIを実行
-    using (var getContentsClient = new HttpClient())
-    {
-        //　認証ヘッダーを追加
-        getContentsClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {Environment.GetEnvironmentVariable("LINE_CHANNEL_ACCESS_TOKEN")}");
+    // Request headers
+    client.DefaultRequestHeaders.Add("Prediction-key", Environment.GetEnvironmentVariable("CustomVisionPredictionKey"));
 
-        // 非同期でPOST
-        var res = await getContentsClient.GetAsync($"https://api-data.line.me/v2/bot/message/{messageId}/content");
-        responsestream = await res.Content.ReadAsStreamAsync();
-    }
+    // Request parameters
+    //iterationIdとapplicationを指定する場合は使用(デフォルト指定している場合は不要)
+    //queryString["iterationId"] = ConfigurationManager.AppSettings["CustomVisionIterationId"];
+    //queryString["application"] = ConfigurationManager.AppSettings["CustomVisionApplication"];
+    var uri = Environment.GetEnvironmentVariable("CustomVisionUri") + queryString;
 
-    return responsestream;
-}
+    HttpResponseMessage response;
 
-// <summary>
-/// Lineににreplyを送信する
-/// </summary>
-/// <returns>Stream</returns>
-static async Task PutLineReply(Response content, TraceWriter log)
-{    
-    // JSON形式に変換
-    var reqData = JsonConvert.SerializeObject(content);
-    
-    // レスポンスの作成
-    using (var client = new HttpClient())
-    {
-        // リクエストデータを作成
-        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "https://api.line.me/v2/bot/message/reply");
-        request.Content = new StringContent(reqData, Encoding.UTF8, "application/json");
+    // Request body
+    var content = new StreamContent(stream);
+    content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+    response = await client.PostAsync(uri, content);
 
-        //　認証ヘッダーを追加
-        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {Environment.GetEnvironmentVariable("LINE_CHANNEL_ACCESS_TOKEN")}");
-
-        // 非同期でPOST
-        var res = await client.SendAsync(request);
-        log.Info($"{res}");
-    }
+    return response;
 }
 
 /// <summary>
-/// リプライ情報の作成
+/// ComputerVisionAPIのレスポンスメッセージをパース
 /// </summary>
-/// <param name="token"></param>
-/// <param name="translateWord"></param>
-/// <param name="log"></param>
-/// <returns>response</returns>
-static Response CreateResponse(string token,string translateWord,TraceWriter log)
+/// <returns>Stream</returns>
+static async Task<string> GetParseString(HttpResponseMessage visionResponse, TraceWriter log)
 {
-    Response res = new Response();
-    Messages msg = new Messages();
+    var jsonContent = await visionResponse.Content.ReadAsStringAsync();
+    log.Info(jsonContent);
+    Image_Response image_data = JsonConvert.DeserializeObject<Image_Response>(jsonContent);
 
-    // リプライトークンはリクエストに含まれるリプライトークンを使う
-    res.replyToken = token;
-    res.messages = new List<Messages>();
+    string words = String.Empty;
 
-    // メッセージタイプがtext以外は単一のレスポンス情報とする
-    msg.type = "text";
-    msg.text = translateWord;
-    res.messages.Add(msg);
+    if (image_data.predictions.Any())
+    {
+        foreach (var prediction in image_data.predictions)
+        {
+            words = words + prediction.TagName + Environment.NewLine + " - " + Convert.ToDouble(prediction.Probability).ToString("P") + Environment.NewLine;
+        }
+    }
+    else
+    {
+        words = "画像が認識できませんでした";
+    }
 
-    return res;
-}
-
-// ******************************************************
-//　リクエスト
-public class Request
-{
-    public List<Event> events { get; set; }
-}
-public class Event
-{
-    public string replyToken { get; set; }
-    public string type { get; set; }
-    public object timestamp { get; set; }
-    public Source source { get; set; }
-    public message message { get; set; }
-}
-public class Source
-{
-    public string type { get; set; }
-    public string userId { get; set; }
-}
-public class message
-{
-    public string id { get; set; }
-    public string type { get; set; }
-    public string text { get; set; }
-}
-// ******************************************************
-
-// ******************************************************
-// レスポンス
-public class Response
-{
-    public string replyToken { get; set; }
-    public List<Messages> messages { get; set; }
+    return words;
 }
 
-// レスポンスメッセージ
-public class Messages
-{
-    public string type { get; set; }
-    public string text { get; set; }
-}
-// ******************************************************
+// Custom Visionから返却されたデータ
+    public class Image_Response
+    {
+        public string Id { get; set; }
+        public string Project { get; set; }
+        public string Iteration { get; set; }
+        public string Created { get; set; }
+        public List<Prediction> predictions { get; set; }
+    }
+
+    public class Prediction
+    {
+        public string TagId { get; set; }
+        public string TagName { get; set; }
+        public string Probability { get; set; }
+    }
