@@ -2,7 +2,7 @@
 #r "Microsoft.WindowsAzure.Storage"
 
 #load "customvision.csx"
-#load "LineAPI.csx"
+#load "SlackAPI.csx"
 #load "AzureStorageController.csx"
 
 using System;
@@ -37,6 +37,27 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
     Response content;
     Stream responsestream = new MemoryStream();
 
+    if (data.type.Equals("url_verification"))
+    {
+        var challengeResponse = req.CreateResponse(HttpStatusCode.OK);
+        challengeResponse.Content = new StringContent(data.challenge);
+        return challengeResponse;
+    }
+    else if (data.type.Equals("event_callback"))
+    {
+        if (data.events.type.Equals("file_shared"))
+        {
+            log.Info(data.events.file_id);
+            return req.CreateResponse(HttpStatusCode.OK);
+        }
+    }
+    else
+    {
+        var response = req.CreateResponse(HttpStatusCode.BadRequest);
+        response.Content = new StringContent("Bad request");
+        return response;
+    }
+/*
     // リクエストデータからデータを取得
     foreach (var item in data.events)
     {
@@ -85,6 +106,6 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
         //await PutLineContentsToStorageAsync(responsestream,containerName, fileName);
     }
     catch{}
-
+*/
     return req.CreateResponse(HttpStatusCode.OK);
 }
