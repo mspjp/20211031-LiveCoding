@@ -45,7 +45,6 @@ static async Task<HttpResponseMessage> GetVisionData(Stream stream)
 static async Task<string> GetParseString(HttpResponseMessage visionResponse, TraceWriter log)
 {
     var jsonContent = await visionResponse.Content.ReadAsStringAsync();
-    log.Info(jsonContent);
     Image_Response image_data = JsonConvert.DeserializeObject<Image_Response>(jsonContent);
 
     string words = String.Empty;
@@ -63,6 +62,45 @@ static async Task<string> GetParseString(HttpResponseMessage visionResponse, Tra
     }
 
     return words;
+}
+
+static async Task<string> GetMaxProbability(HttpResponseMessage visionResponse, TraceWriter log)
+{
+    var jsonContent = await visionResponse.Content.ReadAsStringAsync();
+    log.Info(jsonContent);
+    Image_Response image_data = JsonConvert.DeserializeObject<Image_Response>(jsonContent);
+
+    string words = String.Empty;
+
+    if (image_data.predictions.Any())
+    {
+        double threshold = 0.65;
+        double maxProb = 0;
+        string maxTag = "";
+        foreach (var prediction in image_data.predictions)
+        {
+            if (Convert.ToDouble(prediction.Probability) > maxProb)
+            {
+                maxTag = prediction.TagName;
+                maxProb = Convert.ToDouble(prediction.Probability);
+            }
+        }
+        if (maxProb > threshold)
+        {
+            log.Info(Convert.ToString(maxProb));
+            return maxTag;
+        }
+        else
+        {
+            return "failed";
+        }
+    }
+    else
+    {
+        return "error";
+    }
+
+    return "error";
 }
 
 // Custom Visionから返却されたデータ

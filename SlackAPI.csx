@@ -55,7 +55,7 @@ static async Task PutLineReply(Response content, TraceWriter log)
         log.Info($"{res}");
     }
 }
-*/
+
 /// <summary>
 /// リプライ情報の作成
 /// </summary>
@@ -79,7 +79,7 @@ static Response CreateResponse(string token,string translateWord,TraceWriter log
 
     return res;
 }
-
+*/
 // ******************************************************
 //　リクエスト
 public class Request
@@ -87,25 +87,23 @@ public class Request
     public string token { get; set; }
     public string challenge { get; set; }
     public string type { get; set; }
-    public Event events { get; set; }
+    public Event @event { get; set; }
 }
 public class Event
 {
     public string type { get; set; }
-    public string channel_id { get; set; }
-    public string user_id { get; set; }
     public string file_id { get; set; }
 }
-public class Source
+public class File
 {
-    public string type { get; set; }
-    public string userId { get; set; }
+    public string filetype { get; set; }
+    public string url_private { get; set; }
+    public string permalink_public { get; set; }
 }
-public class message
+public class FileResponse
 {
-    public string id { get; set; }
-    public string type { get; set; }
-    public string text { get; set; }
+    public bool ok { get; set; }
+    public File file { get; set; }
 }
 // ******************************************************
 
@@ -121,6 +119,11 @@ public class Response
 public class Messages
 {
     public string type { get; set; }
+    public string text { get; set; }
+}
+
+public class Payload
+{
     public string text { get; set; }
 }
 // ******************************************************
