@@ -52,7 +52,6 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
                 var res = await getContentsClient.PostAsync(url, new StringContent(""));
                 string str = await res.Content.ReadAsStringAsync();
 
-                //var res = await getContentsClient.GetAsync(url)
                 var body = JsonConvert.DeserializeObject<FileResponse>(str);
 
                 if (body.ok)
