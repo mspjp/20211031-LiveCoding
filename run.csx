@@ -27,13 +27,6 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
     string jsonContent = await req.Content.ReadAsStringAsync();
     Request data = JsonConvert.DeserializeObject<Request>(jsonContent);
 
-    string replyToken = null;
-    string messageType = null;
-    string messageId = null;
-
-    string fileName = DateTime.Now.Year.ToString() + "/" + DateTime.Now.Month.ToString() + "/"　+ DateTime.Now.Day.ToString() + "/" + Guid.NewGuid().ToString();
-    string containerName = "contents";
-
     Stream responsestream = new MemoryStream();
 
     if (data.type.Equals("url_verification"))
@@ -54,10 +47,7 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
                 //
                 getContentsClient.DefaultRequestHeaders.Add("Authorization", "Bearer xoxp-1369928543665-1356135721381-2680199851281-31f824e31c4e59c21a6d3a0eacd8f073");
                 var url = "https://slack.com/api/files.sharedPublicURL?file=" + file_id;
-                
-                //var message = new HttpRequestMessage(HttpMethod.Post, url);
-                //message.Headers.Add("Authorization", "Bearer xoxp-1369928543665-1356135721381-2680199851281-31f824e31c4e59c21a6d3a0eacd8f073");
-                //message.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+
                 // 非同期でGET
                 var res = await getContentsClient.PostAsync(url, new StringContent(""));
                 string str = await res.Content.ReadAsStringAsync();
@@ -110,55 +100,6 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
         response.Content = new StringContent("Bad request");
         return response;
     }
-/*
-    // リクエストデータからデータを取得
-    foreach (var item in data.events)
-    {
-        // リプライデータ送付時の認証トークンを取得
-        replyToken = item.replyToken.ToString();
-        if (item.message != null)
-        {
-            // メッセージタイプを取得
-            messageType = item.message.type.ToString();
-            messageId = item.message.id.ToString();
-        }
-    }
-    log.Info(messageType);
-    log.Info(messageId);
 
-    if (messageType == "image")
-    {    
-        // Lineから指定MessageIdの画像を再取得
-        responsestream = await GetLineContents(messageId);
-
-        // ComputerVisionAPIにリクエストを送る
-        var visionResponse = await GetVisionData(responsestream);
-
-        // 文字列をパース
-        var words = await GetParseString(visionResponse,log); 
-
-        // リプライデータの作成
-        content = CreateResponse(replyToken, words, log);
-//        content = CreateResponse(replyToken, "うけつけました", log);
-    }
-    else
-    {
-        // リプライデータの作成
-        content = CreateResponse(replyToken, "画像を送信してね!", log);
-    }
-
-    // Line ReplyAPIにリクエスト
-    await PutLineReply(content, log);
-
-    // ここは失敗してもいいのでtryしとく
-    try
-    {
-        // Lineから指定MessageIdの画像を取得
-        responsestream = await GetLineContents(messageId);
-        // 取得した画像をAzure Storageに保存
-        //await PutLineContentsToStorageAsync(responsestream,containerName, fileName);
-    }
-    catch{}
-*/
     return req.CreateResponse(HttpStatusCode.OK);
 }
