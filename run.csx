@@ -27,7 +27,7 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
     string jsonContent = await req.Content.ReadAsStringAsync();
     Request data = JsonConvert.DeserializeObject<Request>(jsonContent);
 
-    Stream responsestream = new MemoryStream();
+    Stream responseStream = new MemoryStream();
 
     if (data.type.Equals("url_verification"))
     {
@@ -45,7 +45,7 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
             {
                 //　認証ヘッダーを追加
                 //
-                getContentsClient.DefaultRequestHeaders.Add("Authorization", "Bearer xoxp-1369928543665-1356135721381-2680199851281-31f824e31c4e59c21a6d3a0eacd8f073");
+                getContentsClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {Environment.GetEnvironmentVariable("SLACK_API_TOKEN")}");
                 var url = "https://slack.com/api/files.sharedPublicURL?file=" + file_id;
 
                 // 非同期でGET
@@ -58,33 +58,31 @@ public static async Task<HttpResponseMessage> Run(HttpRequestMessage req, TraceW
                 {
                     log.Info(body.file.url_private);
                     var imageResponse = await getContentsClient.GetAsync(body.file.url_private);
-                    responsestream = await imageResponse.Content.ReadAsStreamAsync();
+                    responseStream = await imageResponse.Content.ReadAsStreamAsync();
 
                     // ComputerVisionAPIにリクエストを送る
-                    var visionResponse = await GetVisionData(responsestream);
+                    var visionResponse = await GetVisionData(responseStream);
 
                     // 文字列をパース
                     var tag = await GetMaxProbability(visionResponse,log);
 
                     if (!tag.Equals("error"))
                     {
-                        var minecraftUrl = "https://func-mcrcon-mstc1staniv01.azurewebsites.net/api/SendCommand?result=" + tag;
+                        var minecraftUrl = Environment.GetEnvironmentVariable("MINECRAFT_FUNCTIONS_URL") + tag;
                         var minecraftResponse = await getContentsClient.GetAsync(minecraftUrl);
                         string result = await minecraftResponse.Content.ReadAsStringAsync();
                         log.Info(result);
                         
-                        url = "https://hooks.slack.com/services/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";
-
+                        var webhookUrl = Environment.GetEnvironmentVariable("SLACK_WEBHOOK_URL");
                         var payload = new Payload
                         {
                             text = result,
                         };
-
                         var json = JsonConvert.SerializeObject(payload);
-
                         var client = new HttpClient();
                         var content = new StringContent(json, Encoding.UTF8, "application/json");
-                        var r = await client.PostAsync(url, content);
+                        
+                        var r = await client.PostAsync(webhookUrl, content);
                         string s = await r.Content.ReadAsStringAsync();
                         log.Info(s);
                     }

@@ -74,7 +74,7 @@ static async Task<string> GetMaxProbability(HttpResponseMessage visionResponse, 
 
     if (image_data.predictions.Any())
     {
-        double threshold = 0.65;
+        double threshold = 0.8;
         double maxProb = 0;
         string maxTag = "";
         foreach (var prediction in image_data.predictions)
