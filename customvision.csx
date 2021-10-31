@@ -17,29 +17,23 @@ using Newtonsoft.Json;
 static async Task<HttpResponseMessage> GetVisionData(Stream stream)
 {
     var client = new HttpClient();
-    var queryString = HttpUtility.ParseQueryString(string.Empty);
 
-    // Request headers
+    // リクエストヘッダ
     client.DefaultRequestHeaders.Add("Prediction-key", Environment.GetEnvironmentVariable("CustomVisionPredictionKey"));
 
-    // Request parameters
-    //iterationIdとapplicationを指定する場合は使用(デフォルト指定している場合は不要)
-    //queryString["iterationId"] = ConfigurationManager.AppSettings["CustomVisionIterationId"];
-    //queryString["application"] = ConfigurationManager.AppSettings["CustomVisionApplication"];
-    var uri = Environment.GetEnvironmentVariable("CustomVisionUri") + queryString;
+    // リクエストパラメータ
+    var uri = Environment.GetEnvironmentVariable("CustomVisionUri");
 
-    HttpResponseMessage response;
-
-    // Request body
+    // リクエストボディ
     var content = new StreamContent(stream);
     content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-    response = await client.PostAsync(uri, content);
+    HttpResponseMessage response = await client.PostAsync(uri, content);
 
     return response;
 }
 
 /// <summary>
-/// ComputerVisionAPIのレスポンスメッセージをパース
+/// Custom Visionのレスポンスメッセージをパース
 /// </summary>
 /// <returns>Stream</returns>
 static async Task<string> GetParseString(HttpResponseMessage visionResponse, TraceWriter log)
@@ -64,19 +58,23 @@ static async Task<string> GetParseString(HttpResponseMessage visionResponse, Tra
     return words;
 }
 
+/// <summary>
+/// Custom Visionのレスポンスから最大確率のタグを取得
+/// </summary>
+/// <returns>Stream</returns>
 static async Task<string> GetMaxProbability(HttpResponseMessage visionResponse, TraceWriter log)
 {
+    // Custom VisionのレスポンスからJSONをパースして予測結果を抽出
     var jsonContent = await visionResponse.Content.ReadAsStringAsync();
     log.Info(jsonContent);
     Image_Response image_data = JsonConvert.DeserializeObject<Image_Response>(jsonContent);
 
-    string words = String.Empty;
-
     if (image_data.predictions.Any())
     {
-        double threshold = 0.8;
-        double maxProb = 0;
+        double threshold = 0.8;  // 識別確率の閾値（この値以上の確からしさがあるタグをreturnする）
+        double maxProb = 0;  // 現時点の最大確率を保存する一時変数
         string maxTag = "";
+
         foreach (var prediction in image_data.predictions)
         {
             if (Convert.ToDouble(prediction.Probability) > maxProb)
